@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Trade BTC by Ha Duy Du</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; min-height: 100vh; }
+        .widget-container { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); background: #1e293b; }
+        .ai-gradient { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
+        .ai-gradient.disabled { background: #475569; cursor: not-allowed; opacity: 0.7; }
+        
+        /* Custom Range Slider */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(255,255,255,0.5); transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #475569; border-radius: 2px; }
+        
+        /* Color specific sliders */
+        .slider-margin::-webkit-slider-thumb { background: #facc15; }
+        .slider-margin::-webkit-slider-runnable-track { background: #422006; }
+        .slider-sl::-webkit-slider-thumb { background: #ef4444; }
+        .slider-sl::-webkit-slider-runnable-track { background: #450a0a; }
+        .slider-tp::-webkit-slider-thumb { background: #22c55e; }
+        .slider-tp::-webkit-slider-runnable-track { background: #052e16; }
+
+        /* Button Styles */
+        .option-btn { background-color: #334155; color: #94a3b8; border: 1px solid transparent; transition: all 0.2s; font-size: 10px; }
+        .option-btn:hover { background-color: #475569; color: white; }
+        .option-btn.active { color: white; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        .interval-btn.active { background-color: #facc15; color: black; border-color: #facc15; }
+        .leverage-btn.active { background-color: #f59e0b; color: black; }
+
+        /* Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        
+        /* Sync Status Indicator */
+        .sync-status { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .sync-green { background-color: #22c55e; box-shadow: 0 0 5px #22c55e; }
+        .sync-red { background-color: #ef4444; }
+        .sync-yellow { background-color: #eab308; animation: pulse 1s infinite; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); backdrop-filter: blur(4px); }
+        .modal-content { background-color: #1e293b; margin: 10% auto; padding: 20px; border: 1px solid #475569; width: 90%; max-width: 400px; border-radius: 12px; position: relative; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Loading Animation */
+        @keyframes blink-dot { 0% { opacity: 0.2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0.2; transform: scale(1); } }
+        .dot { display: inline-block; margin-left: 2px; font-size: 1.2em; }
+        .dot:nth-child(1) { animation: blink-dot 1.2s infinite 0.0s; }
+        .dot:nth-child(2) { animation: blink-dot 1.2s infinite 0.2s; }
+        .dot:nth-child(3) { animation: blink-dot 1.2s infinite 0.4s; }
+        .dot:nth-child(4) { animation: blink-dot 1.2s infinite 0.6s; }
+        
+        .edit-icon { cursor: pointer; opacity: 0.6; transition: all 0.2s; margin-left: 6px; font-size: 0.9rem; padding: 2px 6px; background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .edit-icon:hover { opacity: 1; color: #fff; background: rgba(255,255,255,0.2); }
+
+        /* Toast Notification */
+        .toast-notification {
+            position: fixed; top: 24px; right: 24px;
+            background-color: rgba(6, 78, 59, 0.95);
+            color: #4ade80;
+            padding: 16px 24px;
+            border-radius: 8px; border: 1px solid #22c55e;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            transform: translateX(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: bold; font-size: 0.95rem;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .toast-notification.active { transform: translateX(0); }
+        .toast-error { background-color: rgba(127, 29, 29, 0.95); color: #f87171; border-color: #ef4444; }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex flex-col gap-4 text-sm">
+
+    <!-- Header Section -->
+    <header class="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                Demo Trade BTC 
+                <span class="text-slate-500 text-xl font-light">|</span>
+                by Ha Duy Du
+            </h1>
+            <p class="text-slate-400 text-xs flex items-center gap-2 mt-1">
+                <span id="connection-status" class="sync-status sync-red"></span>
+                <!-- Updated Loading Message -->
+                <span id="user-id-display">Đang kết nối...</span>
+            </p>
+        </div>
+        
+        <!-- Auth Buttons -->
+        <div id="auth-section" class="flex gap-2 items-center">
+            <div id="auth-guest" class="flex gap-2">
+                <button onclick="openModal('modal-login')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition-colors">Đăng Nhập</button>
+                <button onclick="openModal('modal-register')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-blue-500/20">Đăng Ký</button>
+            </div>
+            <div id="auth-user" class="hidden flex items-center gap-3">
+                <div class="text-right">
+                    <div id="user-email" class="text-xs font-bold text-white">user@example.com</div>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <button onclick="logoutUser()" class="px-3 py-1 border border-red-500/50 text-red-400 hover:bg-red-500/10 text-[10px] rounded transition-colors w-full text-center">Thoát</button>
+                    <button onclick="openModal('modal-change-pass')" class="px-3 py-1 border border-slate-500/50 text-slate-300 hover:bg-slate-700 text-[10px] rounded transition-colors w-full text-center">Đổi MK</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Chart Section -->
+    <div class="widget-container w-full h-[500px] flex-none relative z-0">
+        <div id="tradingview_btc_chart" class="w-full h-full"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+        <script type="text/javascript">
+            new TradingView.widget({
+                "autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "30", "timezone": "Asia/Ho_Chi_Minh",
+                "theme": "dark", "style": "1", "locale": "vi", "enable_publishing": false, "withdateranges": true,
+                "hide_side_toolbar": false, "allow_symbol_change": true, "container_id": "tradingview_btc_chart"
+            });
+        </script>
+    </div>
+
+    <!-- Main Controls Area -->
+    <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        <!-- LEFT: Control Panel -->
+        <div class="widget-container p-5 border border-slate-700 bg-slate-900/90 h-full flex flex-col">
+            <h3 class="text-sm font-bold text-white uppercase mb-4 flex items-center gap-2">🎛️ THÔNG TIN LỆNH</h3>
+
+            <!-- Margin Input -->
+            <div class="mb-5 bg-slate-800/30 p-3 rounded-lg border border-slate-700/50">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="text-[10px] text-yellow-500 font-bold uppercase">Ký Quỹ Lệnh (Margin)</label>
+                    <div class="flex items-center gap-1">
+                        <span id="margin-val" class="text-lg font-mono font-bold text-white">$10,000</span>
+                        <span onclick="editValue('margin')" class="edit-icon" title="Nhập số tiền thủ công">✎</span>
+                    </div>
+                </div>
+                <input type="range" min="0" max="500000" step="1000" value="10000" id="slider-margin" class="slider-margin" oninput="updateSliderVal(this.value, 'margin-val', '$')">
+                <div class="relative w-full h-3 text-[9px] text-slate-500 mt-1 font-mono">
+                    <span class="absolute left-0">$0</span>
+                    <span class="absolute left-[50%] -translate-x-1/2">| $250k</span>
+                    <span class="absolute right-0">$500k</span>
+                </div>
+            </div>
+
+            <!-- Settings Grid -->
+            <div class="grid grid-cols-2 gap-4 mb-5">
+                <!-- Timeframe -->
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">1. Khung Giờ</p>
+                    <div class="flex gap-1 flex-wrap">
+                        <button onclick="setIntervalTime('15m')" class="option-btn interval-btn flex-1 py-1 rounded">15m</button>
+                        <button onclick="setIntervalTime('30m')" class="option-btn interval-btn flex-1 py-1 rounded active">30m</button>
+                        <button onclick="setIntervalTime('1h')" class="option-btn interval-btn flex-1 py-1 rounded">1h</button>
+                        <button onclick="setIntervalTime('4h')" class="option-btn interval-btn flex-1 py-1 rounded">4h</button>
+                        <button onclick="setIntervalTime('1D')" class="option-btn interval-btn flex-1 py-1 rounded">1D</button>
+                        <button onclick="setIntervalTime('1W')" class="option-btn interval-btn flex-1 py-1 rounded">1W</button>
+                    </div>
+                </div>
+                <!-- Leverage -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold">2. Đòn Bẩy</p>
+                        <div class="flex items-center">
+                            <span id="leverage-val" class="text-xs font-bold text-orange-400">10x</span>
+                            <span onclick="editValue('leverage')" class="edit-icon" title="Nhập đòn bẩy thủ công">✎</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1 flex-wrap">
+                        <button onclick="setLeverage(10)" class="option-btn leverage-btn active flex-1 py-1 rounded">10x</button>
+                        <button onclick="setLeverage(20)" class="option-btn leverage-btn flex-1 py-1 rounded">20x</button>
+                        <button onclick="setLeverage(50)" class="option-btn leverage-btn flex-1 py-1 rounded">50x</button>
+                        <button onclick="setLeverage(75)" class="option-btn leverage-btn flex-1 py-1 rounded">75x</button>
+                        <button onclick="setLeverage(125)" class="option-btn leverage-btn flex-1 py-1 rounded text-red-400 font-bold">125x</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SL / TP Sliders -->
+            <div class="mb-5 p-3 bg-slate-800/50 rounded border border-slate-700/50 flex-1">
+                <div class="mb-4">
+                    <div class="flex justify-between items-end mb-1">
+                        <label class="text-[10px] text-red-400 font-bold uppercase">Dừng Lỗ (Stop Loss)</label>
+                        <div class="flex items-center gap-1">
+                            <span id="sl-val" class="text-sm font-mono font-bold text-red-400">20%</span>
+                            <span onclick="editValue('sl')" class="edit-icon" title="Sửa thủ công">✎</span>
+                        </div>
+                    </div>
+                    <input type="range" min="0" max="100" step="0.1" value="20" id="slider-sl" class="slider-sl" oninput="updateSliderVal(this.value, 'sl-val', '%')">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-end mb-1">
+                        <label class="text-[10px] text-green-400 font-bold uppercase">Chốt Lời (Take Profit)</label>
+                        <div class="flex items-center gap-1">
+                            <span id="tp-val" class="text-sm font-mono font-bold text-green-400">50%</span>
+                            <span onclick="editValue('tp')" class="edit-icon" title="Sửa thủ công">✎</span>
+                        </div>
+                    </div>
+                    <input type="range" min="0" max="100" step="0.1" value="50" id="slider-tp" class="slider-tp" oninput="updateSliderVal(this.value, 'tp-val', '%')">
+                </div>
+            </div>
+
+            <!-- AI Button -->
+            <button onclick="runPrediction()" id="predict-btn" class="mt-auto w-full py-3 ai-gradient hover:opacity-90 transition-all rounded-lg font-bold text-white shadow-lg shadow-purple-500/20 text-sm flex items-center justify-center gap-1 group">
+                <span id="btn-text" class="group-hover:scale-105 transition-transform">Phân Tích AI & Vào Lệnh</span>
+            </button>
+            <div id="ai-status" class="mt-2 text-[10px] text-slate-400 text-center italic h-4"></div>
+        </div>
+
+        <!-- RIGHT: Active & Journal -->
+        <div class="widget-container flex flex-col min-h-[400px] bg-slate-800/50 h-full">
+            <div class="flex border-b border-slate-700">
+                <button onclick="switchTab('active')" id="tab-active" class="flex-1 py-3 text-xs font-bold text-white border-b-2 border-blue-500 bg-slate-800">Đang Chạy (<span id="active-count">0</span>)</button>
+                <button onclick="switchTab('journal')" id="tab-journal" class="flex-1 py-3 text-xs font-bold text-slate-500 hover:text-slate-300">Nhật Ký (<span id="journal-count">0</span>)</button>
+            </div>
+
+            <!-- Active List -->
+            <div id="view-active" class="flex-1 overflow-y-auto custom-scroll p-0 relative">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-900 text-[9px] text-slate-400 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="p-2">Vị thế</th>
+                            <th class="p-2">Entry</th>
+                            <th class="p-2 text-center">TP/SL</th>
+                            <th class="p-2 text-right">PnL (ROE)</th>
+                            <th class="p-2 text-right">PnL ($)</th>
+                            <th class="p-2 text-center w-10">Act</th>
+                        </tr>
+                    </thead>
+                    <tbody id="active-list" class="text-[11px] text-slate-300"></tbody>
+                </table>
+                <div id="empty-active" class="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600 pointer-events-none">Đăng nhập để xem lệnh...</div>
+            </div>
+
+            <!-- Journal List -->
+            <div id="view-journal" class="hidden flex-1 flex flex-col min-h-0">
+                <!-- Stats -->
+                <div class="p-3 border-b border-slate-700 bg-slate-800/50">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Hiệu Suất</span>
+                        <div class="flex bg-slate-700 rounded p-0.5">
+                            <button onclick="updateStats('12h')" class="stat-filter-btn px-2 py-0.5 text-[9px] rounded text-slate-300 hover:bg-slate-600 active-stat" data-tf="12h">12H</button>
+                            <button onclick="updateStats('24h')" class="stat-filter-btn px-2 py-0.5 text-[9px] rounded text-slate-300 hover:bg-slate-600" data-tf="24h">1D</button>
+                            <button onclick="updateStats('7d')" class="stat-filter-btn px-2 py-0.5 text-[9px] rounded text-slate-300 hover:bg-slate-600" data-tf="7d">7D</button>
+                            <button onclick="updateStats('30d')" class="stat-filter-btn px-2 py-0.5 text-[9px] rounded text-slate-300 hover:bg-slate-600" data-tf="30d">30D</button>
+                            <button onclick="updateStats('1y')" class="stat-filter-btn px-2 py-0.5 text-[9px] rounded text-slate-300 hover:bg-slate-600" data-tf="1y">1Y</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="bg-slate-900/50 p-2 rounded border border-slate-700 text-center">
+                            <div class="text-[9px] text-slate-500 uppercase">Lãi/Lỗ Ròng</div>
+                            <div id="stat-pnl" class="text-sm font-bold font-mono text-slate-200">--</div>
+                        </div>
+                        <div class="bg-slate-900/50 p-2 rounded border border-slate-700 text-center">
+                            <div class="text-[9px] text-slate-500 uppercase">Tổng Lệnh</div>
+                            <div id="stat-count" class="text-sm font-bold font-mono text-slate-200">--</div>
+                        </div>
+                        <div class="bg-slate-900/50 p-2 rounded border border-slate-700 text-center">
+                            <div class="text-[9px] text-slate-500 uppercase">Tỉ Lệ Thắng</div>
+                            <div id="stat-winrate" class="text-sm font-bold font-mono text-slate-200">--</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Table -->
+                <div class="flex-1 overflow-y-auto custom-scroll relative">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-900 text-[9px] text-slate-400 sticky top-0 z-10">
+                            <tr>
+                                <th class="p-2">Thời gian</th>
+                                <th class="p-2">Lệnh</th>
+                                <th class="p-2">Lý do</th>
+                                <th class="p-2 text-right">Kết quả</th>
+                                <th class="p-2 text-center w-8"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="journal-list" class="text-[11px] text-slate-300"></tbody>
+                    </table>
+                    <div id="empty-journal" class="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600 pointer-events-none">Chưa có lịch sử</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <!-- Toast -->
+    <div id="toast-success" class="toast-notification">
+        <span class="text-xl">✓</span>
+        <span id="toast-message">Thông báo</span>
+    </div>
+
+    <!-- Input Modal -->
+    <div id="modal-input" class="modal">
+        <div class="modal-content w-[300px] border-blue-500/50 bg-slate-900 text-center">
+            <h3 class="text-lg font-bold text-white mb-4" id="input-title">Nhập Giá Trị</h3>
+            <input type="text" id="custom-input-field" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-center mb-4 font-mono text-lg" placeholder="0.0">
+            <div id="input-error" class="text-red-400 text-xs mb-2 hidden font-bold">Giá trị không hợp lệ</div>
+            <div class="flex gap-2">
+                <button onclick="closeModal('modal-input')" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 text-xs font-bold">Hủy</button>
+                <button onclick="submitCustomInput()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs font-bold">Xác Nhận</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="modal-change-pass" class="modal">
+        <div class="modal-content w-[350px]">
+            <span onclick="closeModal('modal-change-pass')" class="absolute top-2 right-4 text-slate-400 cursor-pointer text-xl font-bold">&times;</span>
+            <h2 class="text-lg font-bold text-white mb-4">Đổi Mật Khẩu</h2>
+            <div class="space-y-4">
+                <input type="password" id="new-pass" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" placeholder="Mật khẩu mới">
+                <input type="password" id="confirm-new-pass" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" placeholder="Nhập lại mật khẩu">
+                <div id="change-pass-error" class="text-red-400 text-xs h-4"></div>
+                <button onclick="handleChangePassword()" class="w-full py-2 bg-purple-600 hover:bg-purple-500 rounded text-white font-bold text-sm">Lưu Mật Khẩu Mới</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Modal -->
+    <div id="modal-menu" class="modal">
+        <div class="modal-content w-[300px] border-slate-600 bg-slate-800">
+            <h3 class="text-sm font-bold text-white mb-3 border-b border-slate-700 pb-2">Tùy Chọn Lệnh <span id="menu-order-direction" class="ml-1">--</span></h3>
+            <div class="flex flex-col gap-2">
+                <button onclick="viewOrderDetails()" class="flex items-center gap-3 p-3 bg-slate-700 hover:bg-slate-600 rounded text-left transition-colors">
+                    <span class="text-lg">📄</span>
+                    <div><div class="text-xs font-bold text-white">Chi Tiết Lệnh</div><div class="text-[9px] text-slate-400">Xem Entry, TP, SL và PnL</div></div>
+                </button>
+                <button onclick="openDeleteConfirm()" class="flex items-center gap-3 p-3 bg-slate-700 hover:bg-red-900/40 text-left rounded transition-colors group">
+                    <span class="text-lg grayscale group-hover:grayscale-0">🗑️</span>
+                    <div><div class="text-xs font-bold text-red-400 group-hover:text-red-300">Xóa Lệnh</div><div class="text-[9px] text-slate-400 group-hover:text-red-300/70">Xóa khỏi lịch sử vĩnh viễn</div></div>
+                </button>
+            </div>
+            <button onclick="closeModal('modal-menu')" class="mt-4 w-full py-2 text-xs text-slate-500 hover:text-white">Đóng</button>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="modal-confirm-delete" class="modal">
+        <div class="modal-content w-[300px] border-red-500/50 bg-slate-900 text-center">
+            <div class="text-red-500 text-3xl mb-2">⚠️</div>
+            <h3 class="text-lg font-bold text-white mb-2">Xác Nhận Xóa</h3>
+            <p class="text-xs text-slate-400 mb-6">Bạn có chắc chắn muốn xóa lệnh này khỏi lịch sử? Hành động này không thể hoàn tác.</p>
+            <div class="flex gap-2">
+                <button onclick="closeModal('modal-confirm-delete')" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 text-xs font-bold">Hủy</button>
+                <button onclick="executeDeleteOrder()" class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded text-white text-xs font-bold">Xóa Vĩnh Viễn</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="modal-details" class="modal">
+        <div class="modal-content border-blue-900/50 bg-slate-900">
+            <div class="flex justify-between items-start mb-4 border-b border-slate-800 pb-2">
+                <div><h3 class="text-lg font-bold text-white">Chi Tiết Lệnh</h3><p class="text-[10px] text-slate-500 font-mono" id="detail-id">--</p></div>
+                <button onclick="closeModal('modal-details')" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div class="space-y-3 font-mono text-sm">
+                <div class="flex justify-between items-center p-2 bg-slate-800/50 rounded"><span class="text-slate-400 text-xs">ENTRY PRICE</span><span id="detail-entry" class="text-white font-bold">---</span></div>
+                <div class="flex justify-between items-center p-2 bg-slate-800/50 rounded"><span class="text-slate-400 text-xs">TARGET PROFIT (TP)</span><span id="detail-tp" class="text-green-400 font-bold">---</span></div>
+                <div class="flex justify-between items-center p-2 bg-slate-800/50 rounded"><span class="text-slate-400 text-xs">STOP LOSS (SL)</span><span id="detail-sl" class="text-red-400 font-bold">---</span></div>
+                <div class="mt-4 pt-3 border-t border-slate-800">
+                    <div class="flex justify-between items-center"><span class="text-slate-400 text-xs font-bold uppercase">KẾT QUẢ (PnL)</span><span id="detail-pnl" class="text-xl font-black">---</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modals -->
+    <div id="modal-login" class="modal">
+        <div class="modal-content w-[350px]">
+            <span onclick="closeModal('modal-login')" class="absolute top-2 right-4 text-slate-400 cursor-pointer text-xl">&times;</span>
+            <h2 class="text-xl font-bold text-white mb-4">Đăng Nhập</h2>
+            <div class="space-y-4">
+                <input type="email" id="login-email" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" placeholder="Email">
+                <input type="password" id="login-pass" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" placeholder="Mật khẩu">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="login-remember" class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-blue-600">
+                    <label for="login-remember" class="text-xs text-slate-400 cursor-pointer">Nhớ mật khẩu</label>
+                </div>
+                <div id="login-error" class="text-red-400 text-xs h-4"></div>
+                <button onclick="handleLogin()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold text-sm">Đăng Nhập</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-register" class="modal">
+        <div class="modal-content w-[350px]">
+            <span onclick="closeModal('modal-register')" class="absolute top-2 right-4 text-slate-400 cursor-pointer text-xl">&times;</span>
+            <h2 class="text-xl font-bold text-white mb-4">Đăng Ký</h2>
+            <div class="space-y-4">
+                <input type="email" id="reg-email" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" placeholder="Email">
+                <input type="password" id="reg-pass" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" placeholder="Mật khẩu">
+                <input type="password" id="reg-pass-confirm" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" placeholder="Nhập lại mật khẩu">
+                <div id="reg-error" class="text-red-400 text-xs h-4"></div>
+                <button onclick="handleRegister()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-bold text-sm">Đăng Ký Ngay</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE SETUP -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, setDoc, getDoc, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ============================================================
+        // ▼▼▼ DÁN CẤU HÌNH FIREBASE CỦA BẠN VÀO KHU VỰC BÊN DƯỚI ▼▼▼
+        const YOUR_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyAw_rm5VlI8OzsG19Vf4siuAhrrDa9XIOQ",
+            authDomain: "fir-trade-df3e0.firebaseapp.com",
+            projectId: "fir-trade-df3e0",
+            storageBucket: "fir-trade-df3e0.firebasestorage.app",
+            messagingSenderId: "492373535078",
+            appId: "1:492373535078:web:d869ac7df7b362614a80a7",
+            measurementId: "G-J20JGR7GR7"
+        };
+        // ============================================================
+
+        window.config = { interval: "30m", leverage: 10, margin: 10000, stopLoss: 20, takeProfit: 50 };
+        window.activeOrders = [];
+        window.journalEntries = [];
+        window.currentStatFilter = '12h';
+        window.selectedJournalEntry = null;
+        window.currentEditType = null;
+        
+        let appId = 'default-btc-app';
+        let userId = null;
+        let db = null;
+        let auth = null;
+        let isRestoring = false; 
+
+        const debounce = (func, delay) => {
+            let timeoutId;
+            return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => func.apply(null, args), delay); };
+        };
+
+        window.formatMoney = (amount) => {
+            return `$${Math.abs(amount).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}`;
+        };
+
+        // --- GLOBAL UI HELPERS (Defined early) ---
+        window.switchTab = (tab) => {
+            document.getElementById('view-active').classList.add('hidden');
+            document.getElementById('view-journal').classList.add('hidden');
+            document.getElementById('tab-active').className = "flex-1 py-3 text-xs font-bold text-slate-500 hover:text-slate-300";
+            document.getElementById('tab-journal').className = "flex-1 py-3 text-xs font-bold text-slate-500 hover:text-slate-300";
+            
+            if(tab === 'active') {
+                document.getElementById('view-active').classList.remove('hidden');
+                document.getElementById('tab-active').className = "flex-1 py-3 text-xs font-bold text-white border-b-2 border-blue-500 bg-slate-800";
+            } else {
+                document.getElementById('view-journal').classList.remove('hidden');
+                document.getElementById('tab-journal').className = "flex-1 py-3 text-xs font-bold text-white border-b-2 border-purple-500 bg-slate-800";
+                window.updateStats(window.currentStatFilter);
+            }
+        };
+
+        window.updateStats = (timeframe) => {
+            window.currentStatFilter = timeframe;
+            document.querySelectorAll('.stat-filter-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                if(btn.dataset.tf === timeframe) btn.classList.add('bg-blue-600', 'text-white');
+            });
+
+            const now = Date.now();
+            let cutoff = 0;
+            const hour = 3600 * 1000;
+            const day = 24 * hour;
+
+            if(timeframe === '12h') cutoff = now - (12 * hour);
+            if(timeframe === '24h') cutoff = now - (24 * hour);
+            if(timeframe === '7d') cutoff = now - (7 * day);
+            if(timeframe === '30d') cutoff = now - (30 * day);
+            if(timeframe === '1y') cutoff = now - (365 * day);
+
+            const filtered = window.journalEntries.filter(e => e.timestamp >= cutoff);
+            const totalPnl = filtered.reduce((sum, e) => sum + (e.pnlValue || 0), 0);
+            const winCount = filtered.filter(e => (e.pnlValue || 0) > 0).length;
+            const totalCount = filtered.length;
+            const winRate = filtered.length > 0 ? (winCount / filtered.length * 100) : 0;
+
+            const pnlEl = document.getElementById('stat-pnl');
+            pnlEl.innerText = window.formatMoney(totalPnl);
+            pnlEl.className = `text-sm font-bold font-mono ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+
+            document.getElementById('stat-count').innerText = filtered.length;
+            const winEl = document.getElementById('stat-winrate');
+            winEl.innerText = `${winRate.toFixed(1)}%`;
+            winEl.className = `text-sm font-bold font-mono ${winRate >= 50 ? 'text-green-400' : 'text-orange-400'}`;
+        };
+
+        window.openMenu = (fid) => {
+            window.selectedJournalEntry = window.journalEntries.find(e => e.firestoreId === fid);
+            if(!window.selectedJournalEntry) return;
+            const e = window.selectedJournalEntry;
+            const color = e.direction === 'LONG' ? "text-green-500" : "text-red-500";
+            document.getElementById('menu-order-direction').innerHTML = `<span class="${color}">${e.direction} x${e.leverage}</span>`;
+            openModal('modal-menu');
+        };
+
+        window.viewOrderDetails = () => {
+            const e = window.selectedJournalEntry;
+            if(!e) return;
+            closeModal('modal-menu');
+            
+            const lev = e.leverage || 10;
+            const price = e.entryPrice || 0;
+            let tpP = 0, slP = 0;
+
+            if(price > 0) {
+                const tpM = (e.tpPercent/lev)/100, slM = (e.slPercent/lev)/100;
+                if(e.direction === 'LONG') { tpP = price * (1+tpM); slP = price * (1-slM); }
+                else { tpP = price * (1-tpM); slP = price * (1+slM); }
+            }
+
+            const color = e.direction === 'LONG' ? "text-green-500" : "text-red-500";
+            document.getElementById('detail-id').innerHTML = `<span class="${color} font-bold text-lg">${e.direction} x${lev}</span>`;
+            document.getElementById('detail-entry').innerText = `$${price.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('detail-tp').innerText = `$${tpP.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('detail-sl').innerText = `$${slP.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            
+            const pnlEl = document.getElementById('detail-pnl');
+            pnlEl.innerText = window.formatMoney(e.pnlValue || 0);
+            pnlEl.className = `text-xl font-black ${(e.pnlValue||0) >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            openModal('modal-details');
+        };
+
+        window.openDeleteConfirm = () => { closeModal('modal-menu'); openModal('modal-confirm-delete'); };
+        
+        window.executeDeleteOrder = async () => {
+            const entry = window.selectedJournalEntry;
+            if(!entry) return;
+            
+            closeModal('modal-confirm-delete');
+            // Optimistic UI update
+            window.journalEntries = window.journalEntries.filter(x => x.firestoreId !== entry.firestoreId);
+            renderJournal(); 
+            window.updateStats(window.currentStatFilter);
+
+            try {
+                // FIXED: Query by ID to ensure deletion
+                const q = query(collection(db, 'artifacts', appId, 'users', userId, 'journal_history'), where("id", "==", entry.id));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach(async (d) => {
+                    await deleteDoc(d.ref);
+                });
+            } catch(e) {
+                console.error("Delete Error:", e);
+                window.showToast("Lỗi xóa lệnh!", true);
+            }
+        };
+
+        window.editValue = (type) => {
+            window.currentEditType = type;
+            const inputField = document.getElementById('custom-input-field');
+            document.getElementById('input-title').innerText = type === 'margin' ? "Nhập Tiền ($)" : (type === 'leverage' ? "Nhập Đòn Bẩy" : "Nhập %");
+            let val = type === 'margin' ? window.config.margin : (type === 'sl' ? window.config.stopLoss : (type === 'tp' ? window.config.takeProfit : window.config.leverage));
+            inputField.value = val;
+            openModal('modal-input');
+            setTimeout(() => inputField.focus(), 100);
+        };
+
+        window.submitCustomInput = () => {
+            let input = document.getElementById('custom-input-field').value.replace(',', '.');
+            let num = parseFloat(input);
+            if (isNaN(num) || num < 0) { document.getElementById('input-error').classList.remove('hidden'); return; }
+
+            if (window.currentEditType === 'margin') {
+                window.config.margin = num;
+                const s = document.getElementById('slider-margin');
+                if(num > 500000) s.max = num; s.value = num;
+                document.getElementById('margin-val').innerText = window.formatMoney(num);
+            } else if (window.currentEditType === 'leverage') {
+                if (num < 1 || num > 125 || !Number.isInteger(num)) return;
+                window.config.leverage = num;
+                document.getElementById('leverage-val').innerText = num + 'x';
+                setLeverageUI(num);
+            } else {
+                num = parseFloat(num.toFixed(1));
+                if (window.currentEditType === 'sl') {
+                    window.config.stopLoss = num; document.getElementById('slider-sl').value = num;
+                    document.getElementById('sl-val').innerText = num.toLocaleString('vi-VN') + '%';
+                } else {
+                    window.config.takeProfit = num; document.getElementById('slider-tp').value = num;
+                    document.getElementById('tp-val').innerText = num.toLocaleString('vi-VN') + '%';
+                }
+            }
+            saveSettings(); closeModal('modal-input');
+        };
+
+        window.updateSliderVal = (val, id, suffix = '') => {
+            if(id === 'margin-val') {
+                document.getElementById(id).innerText = window.formatMoney(parseInt(val));
+                window.config.margin = parseInt(val);
+            } else {
+                let num = parseFloat(val);
+                document.getElementById(id).innerText = num.toLocaleString('vi-VN') + suffix;
+                if(id === 'sl-val') window.config.stopLoss = num;
+                if(id === 'tp-val') window.config.takeProfit = num;
+            }
+            saveSettings();
+        };
+
+        window.setIntervalTime = (label) => { window.config.interval = label; setIntervalTimeUI(label); saveSettings(); };
+        window.setLeverage = (lev) => { window.config.leverage = lev; setLeverageUI(lev); document.getElementById('leverage-val').innerText = lev + 'x'; saveSettings(); };
+
+        window.openModal = (id) => document.getElementById(id).style.display = 'block';
+        window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+
+        window.handleRegister = async () => {
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+            const confirm = document.getElementById('reg-pass-confirm').value;
+            if(pass !== confirm) { document.getElementById('reg-error').innerText = "Mật khẩu không khớp!"; return; }
+            try {
+                await createUserWithEmailAndPassword(auth, email, pass);
+                closeModal('modal-register');
+                window.showToast("Đăng ký thành công!");
+            } catch (e) { document.getElementById('reg-error').innerText = "Lỗi: " + e.message; }
+        };
+
+        window.handleLogin = async () => {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const remember = document.getElementById('login-remember').checked;
+            try {
+                await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+                await signInWithEmailAndPassword(auth, email, pass);
+                closeModal('modal-login');
+                window.showToast("Đăng nhập thành công!");
+            } catch (e) { document.getElementById('login-error').innerText = "Sai email hoặc mật khẩu!"; }
+        };
+
+        window.handleChangePassword = async () => {
+            const newPass = document.getElementById('new-pass').value;
+            const confirmPass = document.getElementById('confirm-new-pass').value;
+            if(newPass !== confirmPass) { document.getElementById('change-pass-error').innerText = "Không khớp!"; return; }
+            try {
+                if (auth.currentUser) {
+                    await updatePassword(auth.currentUser, newPass);
+                    window.showToast("Đã lưu mật khẩu mới");
+                    closeModal('modal-change-pass');
+                }
+            } catch (e) { document.getElementById('change-pass-error').innerText = "Lỗi: " + e.message; }
+        };
+
+        window.showToast = (msg, isError = false) => {
+            const toast = document.getElementById('toast-success');
+            document.getElementById('toast-message').innerText = msg;
+            if (isError) {
+                toast.classList.add('toast-error');
+                toast.querySelector('span:first-child').innerText = '✕';
+            } else {
+                toast.classList.remove('toast-error');
+                toast.querySelector('span:first-child').innerText = '✓';
+            }
+            toast.classList.add('active');
+            setTimeout(() => toast.classList.remove('active'), 3000);
+        }
+
+        window.logoutUser = async () => await signOut(auth);
+
+        // --- CORE FUNCTIONS ---
+        const initFirebase = async () => {
+            const statusDot = document.getElementById('connection-status');
+            const userDisplay = document.getElementById('user-id-display');
+            const authGuest = document.getElementById('auth-guest');
+            const authUser = document.getElementById('auth-user');
+            
+            try {
+                let firebaseConfig = YOUR_FIREBASE_CONFIG;
+                appId = YOUR_FIREBASE_CONFIG.projectId || 'my-custom-app';
+                
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        statusDot.className = "sync-status sync-green";
+                        if(user.isAnonymous) {
+                            userDisplay.innerText = "Guest Mode";
+                            authGuest.classList.remove('hidden'); authUser.classList.add('hidden');
+                        } else {
+                            userDisplay.innerText = "Online";
+                            document.getElementById('user-email').innerText = user.email;
+                            authGuest.classList.add('hidden'); authUser.classList.remove('hidden');
+                        }
+                        setupListeners();
+                        loadSettings();
+                    } else {
+                        userId = null;
+                        statusDot.className = "sync-status sync-red";
+                        userDisplay.innerText = "Disconnected";
+                        authGuest.classList.remove('hidden'); authUser.classList.add('hidden');
+                        window.activeOrders = []; window.journalEntries = [];
+                        renderActiveOrders(); renderJournal();
+                    }
+                });
+            } catch (e) { console.error("Firebase Error:", e); }
+        };
+
+        const setupListeners = () => {
+            if(!userId) return;
+            onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'active_orders'), (snapshot) => {
+                window.activeOrders = [];
+                snapshot.forEach(doc => window.activeOrders.push({ firestoreId: doc.id, ...doc.data() }));
+                window.activeOrders.sort((a, b) => a.id - b.id);
+                renderActiveOrders();
+            });
+            onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'journal_history'), (snapshot) => {
+                window.journalEntries = [];
+                snapshot.forEach(doc => window.journalEntries.push({ firestoreId: doc.id, ...doc.data() }));
+                window.journalEntries.sort((a, b) => b.timestamp - a.timestamp);
+                renderJournal();
+                window.updateStats(window.currentStatFilter);
+            });
+        };
+
+        const loadSettings = async () => {
+            if(!userId) return;
+            isRestoring = true;
+            try {
+                const docSnap = await getDoc(doc(db, 'artifacts', appId, 'users', userId, 'config', 'settings'));
+                if (docSnap.exists()) {
+                    window.config = { ...window.config, ...docSnap.data() };
+                    updateSliderUI(); setLeverageUI(window.config.leverage); setIntervalTimeUI(window.config.interval);
+                }
+            } catch (e) {}
+            setTimeout(() => isRestoring = false, 500);
+        };
+
+        const saveSettings = debounce(async () => {
+            if (!userId || isRestoring) return;
+            await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'config', 'settings'), window.config);
+        }, 1000);
+
+        window.runPrediction = async () => {
+            if (!userId) return alert("Vui lòng đăng nhập!");
+            const btn = document.getElementById('predict-btn');
+            const btnText = document.getElementById('btn-text');
+            btn.disabled = true;
+            btnText.innerHTML = `Đang phân tích<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>`;
+            
+            try {
+                // 1. Get Price with Fallback
+                let price = 0;
+                try {
+                    const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+                    if(!res.ok) throw new Error("Binance Blocked");
+                    const ticker = await res.json();
+                    price = parseFloat(ticker.price);
+                } catch (e) {
+                    console.warn("API Error, using mock:", e);
+                    price = 96500 + (Math.random() * 200 - 100); 
+                    window.showToast("⚠️ Dùng giá mô phỏng (API chặn)", true);
+                }
+
+                // 2. AI Analysis (Mock if no key)
+                const apiKey = ""; // USER API KEY HERE
+                let pred;
+                
+                if (!apiKey) {
+                    // Mock AI response
+                    await new Promise(r => setTimeout(r, 1500));
+                    const randomUp = Math.floor(Math.random() * 30) + 40; 
+                    pred = {
+                        up_prob: randomUp,
+                        down_prob: 100 - randomUp,
+                        reason: "Mô phỏng: RSI phân kỳ (Chưa nhập API Key)"
+                    };
+                } else {
+                    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+                    const prompt = `Analyze BTC/USDT ${window.config.interval}. Output valid JSON: {"up_prob": number, "down_prob": number, "reason": "Short summary"}`;
+                    const aiResponse = await fetch(`${url}?key=${apiKey}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    const data = await aiResponse.json();
+                    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    const jsonMatch = textContent.match(/\{.*\}/s);
+                    pred = JSON.parse(jsonMatch[0]);
+                }
+
+                const dir = pred.up_prob >= pred.down_prob ? "LONG" : "SHORT";
+
+                await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'active_orders'), {
+                    id: Date.now().toString().slice(-6),
+                    startTime: new Date().toLocaleTimeString(),
+                    timestamp: Date.now(),
+                    entryPrice: price,
+                    direction: dir,
+                    leverage: window.config.leverage,
+                    margin: window.config.margin,
+                    slPercent: window.config.stopLoss,
+                    tpPercent: window.config.takeProfit,
+                    reason: pred.reason
+                });
+                window.switchTab('active');
+            } catch (e) { 
+                console.error(e); 
+                window.showToast("Lỗi hệ thống", true);
+            } 
+            finally { btn.disabled = false; btnText.innerHTML = `Phân Tích AI & Vào Lệnh`; }
+        };
+
+        window.manualCloseOrder = async (fid) => {
+            const btn = document.getElementById(`btn-close-${fid}`);
+            if(btn) { btn.disabled = true; btn.innerHTML = `<span class="loading-dots"></span>`; }
+            try {
+                let price = 96500; // Default mock
+                try {
+                    const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+                    const ticker = await res.json();
+                    price = parseFloat(ticker.price);
+                } catch(e) { console.warn("Using mock price for close"); }
+
+                const order = window.activeOrders.find(o => o.firestoreId === fid);
+                if(!order) return;
+                
+                let raw = order.direction === "LONG" ? (price - order.entryPrice)/order.entryPrice : (order.entryPrice - price)/order.entryPrice;
+                await performCloseOrder(order, "🔘 Đóng Tay", raw * 100 * order.leverage, order.margin * raw * order.leverage);
+            } catch(e) { if(btn) { btn.disabled = false; btn.innerText = "✕"; } }
+        };
+
+        const performCloseOrder = async (order, reason, roe, pnl) => {
+            await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'journal_history'), {
+                ...order, timestamp: Date.now(), reason, pnlValue: pnl, roe
+            });
+            await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'active_orders', order.firestoreId));
+        };
+
+        setInterval(async () => {
+            if (window.activeOrders.length === 0) return;
+            try {
+                let price = 96500;
+                try {
+                    const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+                    const ticker = await res.json();
+                    price = parseFloat(ticker.price);
+                } catch(e) {}
+                
+                window.activeOrders.forEach(o => {
+                    let raw = o.direction === "LONG" ? (price - o.entryPrice)/o.entryPrice : (o.entryPrice - price)/o.entryPrice;
+                    let roe = raw * 100 * o.leverage;
+                    let pnl = o.margin * raw * o.leverage;
+
+                    const row = document.getElementById(`row-${o.firestoreId}`);
+                    if (row) {
+                        const color = roe >= 0 ? "text-green-400" : "text-red-400";
+                        row.querySelector('.pnl-roe').innerHTML = `<span class="${color}">${roe > 0 ? '+' : ''}${roe.toFixed(2)}%</span>`;
+                        row.querySelector('.pnl-val').innerHTML = `<span class="${color}">${window.formatMoney(pnl)}</span>`;
+                    }
+
+                    if (!o.closing && (roe <= -o.slPercent || roe >= o.tpPercent)) {
+                        o.closing = true;
+                        performCloseOrder(o, roe <= -o.slPercent ? `⛔ SL` : `✅ TP`, roe, pnl);
+                    }
+                });
+            } catch(e) {}
+        }, 3000);
+
+        // --- UI Helpers Local ---
+        const renderActiveOrders = () => {
+            const list = document.getElementById('active-list');
+            const count = document.getElementById('active-count');
+            const empty = document.getElementById('empty-active');
+            count.innerText = window.activeOrders.length;
+            
+            if (window.activeOrders.length === 0) {
+                list.innerHTML = ""; empty.style.display = 'flex'; empty.innerText = userId ? "Chưa có lệnh nào đang chạy" : "Đăng nhập để bắt đầu"; return;
+            }
+            empty.style.display = 'none';
+
+            list.innerHTML = window.activeOrders.map(o => {
+                const color = o.direction === 'LONG' ? "text-green-500" : "text-red-500";
+                return `
+                <tr id="row-${o.firestoreId}" class="border-b border-slate-800 hover:bg-slate-700/30 transition-colors">
+                    <td class="p-2"><div class="font-bold text-[10px] ${color}">${o.direction} x${o.leverage}</div><div class="text-[9px] text-slate-500">${window.formatMoney(o.margin)}</div></td>
+                    <td class="p-2 font-mono text-slate-400">$${o.entryPrice.toLocaleString()}</td>
+                    <td class="p-2 text-center text-[9px] font-mono"><span class="text-green-600 font-bold text-sm">${o.tpPercent}%</span> <span class="text-slate-600">/</span> <span class="text-red-600 font-bold text-sm">${o.slPercent}%</span></td>
+                    <td class="p-2 text-right font-bold font-mono pnl-roe text-slate-500">...%</td>
+                    <td class="p-2 text-right font-bold font-mono pnl-val text-slate-500">...$</td>
+                    <td class="p-2 text-center"><button id="btn-close-${o.firestoreId}" onclick="manualCloseOrder('${o.firestoreId}')" class="bg-slate-700 hover:bg-red-500 text-slate-300 hover:text-white transition-colors text-[10px] w-6 h-6 rounded flex items-center justify-center font-bold">✕</button></td>
+                </tr>`;
+            }).join('');
+        };
+
+        const renderJournal = () => {
+            const list = document.getElementById('journal-list');
+            const count = document.getElementById('journal-count');
+            const empty = document.getElementById('empty-journal');
+            count.innerText = window.journalEntries.length;
+
+            if (window.journalEntries.length === 0) { list.innerHTML = ""; empty.style.display = 'flex'; return; }
+            empty.style.display = 'none';
+
+            list.innerHTML = window.journalEntries.map(e => {
+                const color = e.pnlValue >= 0 ? "text-green-400" : "text-red-400";
+                const d = new Date(e.timestamp);
+                const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} | ${d.getDate()}/${d.getMonth()+1}/${String(d.getFullYear()).slice(-2)}`;
+                return `
+                <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+                    <td class="p-2 text-slate-400 font-mono text-[10px]">${time}</td>
+                    <td class="p-2"><span class="font-bold ${e.direction === 'LONG' ? 'text-green-500' : 'text-red-500'}">${e.direction} x${e.leverage}</span></td>
+                    <td class="p-2 text-slate-400 text-[10px]">${e.reason}</td>
+                    <td class="p-2 text-right font-bold font-mono ${color}">${window.formatMoney(e.pnlValue)}</td>
+                    <td class="p-2 text-center"><button onclick="openMenu('${e.firestoreId}')" class="text-slate-500 hover:text-white font-bold px-2 py-1 hover:bg-slate-700 rounded text-xs">...</button></td>
+                </tr>`;
+            }).join('');
+        };
+
+        const setIntervalTimeUI = (v) => { document.querySelectorAll('.interval-btn').forEach(b => { b.classList.remove('active'); if(b.innerText.toLowerCase()===v.toLowerCase()) b.classList.add('active'); }); };
+        const setLeverageUI = (v) => { document.querySelectorAll('.leverage-btn').forEach(b => { b.classList.remove('active'); if(b.innerText === v+'x') b.classList.add('active'); }); };
+        const updateSliderUI = () => {
+            const m = document.getElementById('slider-margin'); m.value = window.config.margin; updateSliderVal(m.value, 'margin-val', '$');
+            const sl = document.getElementById('slider-sl'); sl.value = window.config.stopLoss; updateSliderVal(sl.value, 'sl-val', '%');
+            const tp = document.getElementById('slider-tp'); tp.value = window.config.takeProfit; updateSliderVal(tp.value, 'tp-val', '%');
+            document.getElementById('leverage-val').innerText = window.config.leverage + 'x';
+        };
+
+        initFirebase();
+    </script>
+</body>
+</html>
